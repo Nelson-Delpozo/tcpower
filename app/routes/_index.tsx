@@ -1,141 +1,112 @@
-import type { MetaFunction } from "@remix-run/node";
-import { Link } from "@remix-run/react";
+import type { ActionFunctionArgs, MetaFunction } from "@remix-run/node";
+import { json } from "@remix-run/node";
+import { Form, useActionData, useNavigation } from "@remix-run/react";
+import { prisma } from "~/db.server"; // Assuming db.server.ts exports prisma client
 
-import { useOptionalUser } from "~/utils";
+export const meta: MetaFunction = () => {
+  return [
+    { title: "TC Power & Battery - Coming Soon!" },
+    { name: "description", content: "Join the waitlist for The Colony's new hub for outdoor power equipment sales and repair!" },
+  ];
+};
 
-export const meta: MetaFunction = () => [{ title: "Remix Notes" }];
+export async function action({ request }: ActionFunctionArgs) {
+  const formData = await request.formData();
+  const email = formData.get("email");
+
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+  if (typeof email !== "string" || email.length === 0 || !emailRegex.test(email)) {
+    return json({ errors: { email: "Please enter a valid email address." } }, { status: 400 });
+  }
+
+  try {
+    await prisma.waitlistEntry.create({
+      data: { email },
+    });
+    return json({ success: true, message: "Thanks for signing up! We'll keep you posted on our grand opening and special offers." });
+  } catch (e: any) {
+    // Handle potential unique constraint violation (email already exists)
+    if (e.code === "P2002" && e.meta?.target?.includes("email")) {
+      return json({ errors: { email: "This email address is already on our waitlist." } }, { status: 400 });
+    }
+    // Generic error
+    return json({ errors: { email: "Something went wrong. Please try again later." } }, { status: 500 });
+  }
+}
 
 export default function Index() {
-  const user = useOptionalUser();
-  return (
-    <main className="relative min-h-screen bg-white sm:flex sm:items-center sm:justify-center">
-      <div className="relative sm:pb-16 sm:pt-8">
-        <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
-          <div className="relative shadow-xl sm:overflow-hidden sm:rounded-2xl">
-            <div className="absolute inset-0">
-              <img
-                className="h-full w-full object-cover"
-                src="https://user-images.githubusercontent.com/1500684/157774694-99820c51-8165-4908-a031-34fc371ac0d6.jpg"
-                alt="Sonic Youth On Stage"
-              />
-              <div className="absolute inset-0 bg-[color:rgba(254,204,27,0.5)] mix-blend-multiply" />
-            </div>
-            <div className="relative px-4 pb-8 pt-16 sm:px-6 sm:pb-14 sm:pt-24 lg:px-8 lg:pb-20 lg:pt-32">
-              <h1 className="text-center text-6xl font-extrabold tracking-tight sm:text-8xl lg:text-9xl">
-                <span className="block uppercase text-yellow-500 drop-shadow-md">
-                  Indie Stack
-                </span>
-              </h1>
-              <p className="mx-auto mt-6 max-w-lg text-center text-xl text-white sm:max-w-3xl">
-                Check the README.md file for instructions on how to get this
-                project deployed.
-              </p>
-              <div className="mx-auto mt-10 max-w-sm sm:flex sm:max-w-none sm:justify-center">
-                {user ? (
-                  <Link
-                    to="/notes"
-                    className="flex items-center justify-center rounded-md border border-transparent bg-white px-4 py-3 text-base font-medium text-yellow-700 shadow-sm hover:bg-yellow-50 sm:px-8"
-                  >
-                    View Notes for {user.email}
-                  </Link>
-                ) : (
-                  <div className="space-y-4 sm:mx-auto sm:inline-grid sm:grid-cols-2 sm:gap-5 sm:space-y-0">
-                    <Link
-                      to="/join"
-                      className="flex items-center justify-center rounded-md border border-transparent bg-white px-4 py-3 text-base font-medium text-yellow-700 shadow-sm hover:bg-yellow-50 sm:px-8"
-                    >
-                      Sign up
-                    </Link>
-                    <Link
-                      to="/login"
-                      className="flex items-center justify-center rounded-md bg-yellow-500 px-4 py-3 font-medium text-white hover:bg-yellow-600"
-                    >
-                      Log In
-                    </Link>
-                  </div>
-                )}
-              </div>
-              <a href="https://remix.run">
-                <img
-                  src="https://user-images.githubusercontent.com/1500684/158298926-e45dafff-3544-4b69-96d6-d3bcc33fc76a.svg"
-                  alt="Remix"
-                  className="mx-auto mt-16 w-full max-w-[12rem] md:max-w-[16rem]"
-                />
-              </a>
-            </div>
-          </div>
-        </div>
+  const actionData = useActionData<typeof action>();
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === "submitting";
 
-        <div className="mx-auto max-w-7xl px-4 py-2 sm:px-6 lg:px-8">
-          <div className="mt-6 flex flex-wrap justify-center gap-8">
-            {[
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157764397-ccd8ea10-b8aa-4772-a99b-35de937319e1.svg",
-                alt: "Fly.io",
-                href: "https://fly.io",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157764395-137ec949-382c-43bd-a3c0-0cb8cb22e22d.svg",
-                alt: "SQLite",
-                href: "https://sqlite.org",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157764484-ad64a21a-d7fb-47e3-8669-ec046da20c1f.svg",
-                alt: "Prisma",
-                href: "https://prisma.io",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157764276-a516a239-e377-4a20-b44a-0ac7b65c8c14.svg",
-                alt: "Tailwind",
-                href: "https://tailwindcss.com",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157764454-48ac8c71-a2a9-4b5e-b19c-edef8b8953d6.svg",
-                alt: "Cypress",
-                href: "https://www.cypress.io",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157772386-75444196-0604-4340-af28-53b236faa182.svg",
-                alt: "MSW",
-                href: "https://mswjs.io",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157772447-00fccdce-9d12-46a3-8bb4-fac612cdc949.svg",
-                alt: "Vitest",
-                href: "https://vitest.dev",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157772662-92b0dd3a-453f-4d18-b8be-9fa6efde52cf.png",
-                alt: "Testing Library",
-                href: "https://testing-library.com",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157772934-ce0a943d-e9d0-40f8-97f3-f464c0811643.svg",
-                alt: "Prettier",
-                href: "https://prettier.io",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157772990-3968ff7c-b551-4c55-a25c-046a32709a8e.svg",
-                alt: "ESLint",
-                href: "https://eslint.org",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157773063-20a0ed64-b9f8-4e0b-9d1e-0b65a3d4a6db.svg",
-                alt: "TypeScript",
-                href: "https://typescriptlang.org",
-              },
-            ].map((img) => (
-              <a
-                key={img.href}
-                href={img.href}
-                className="flex h-16 w-32 justify-center p-1 grayscale transition hover:grayscale-0 focus:grayscale-0"
-              >
-                <img alt={img.alt} src={img.src} className="object-contain" />
-              </a>
-            ))}
+  return (
+    <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center p-4">
+      <img src="/landscaping-equipment-header.jpg.webp" alt="Outdoor Power Equipment" className="w-full max-w-4xl h-auto md:h-64 object-cover rounded-lg shadow-lg mb-8" />
+      <div className="bg-white p-8 md:p-12 rounded-xl shadow-2xl max-w-2xl w-full text-center">
+        
+        <img src="/iStock-1023450122.jpg" alt="Gardening tools" className="w-32 h-32 mx-auto rounded-full shadow-md mb-6 object-cover" />
+
+        <h1 className="text-4xl md:text-5xl font-bold text-green-700 mb-6">
+          The Colony's New Hub for Outdoor Power Equipment is Coming Soon!
+        </h1>
+        
+        <p className="text-gray-700 text-lg mb-4">
+          TC Power & Battery is your new local expert for top-quality outdoor power equipment sales, 
+          reliable small engine repair, and specialized battery-powered tool services. 
+          From zero-turns and chainsaws to generators and trimmers, we've got you covered.
+        </p>
+        <p className="text-gray-700 text-lg mb-8">
+          Serving homeowners, commercial landscapers, and municipal clients with modern equipment solutions and expert service. 
+          Sign up to be the first to know about our grand opening!
+        </p>
+
+        {/* Optional Square Image 2 - Replace with actual image path */}
+        {/* Example: <img src="/slide-4.jpg" alt="Battery powered tools" className="w-48 h-auto mx-auto rounded-lg shadow-md mb-8" /> */}
+
+        <Form method="post" className="space-y-6">
+          <div>
+            <label htmlFor="email" className="sr-only">
+              Email address
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+              placeholder="Enter your email address"
+            />
+            {actionData && "errors" in actionData && actionData.errors?.email && (
+              <p className="mt-2 text-sm text-red-600" id="email-error">
+                {actionData.errors.email}
+              </p>
+            )}
           </div>
-        </div>
+
+          <div>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+            >
+              {isSubmitting ? "Submitting..." : "Join the Waitlist"}
+            </button>
+          </div>
+        </Form>
+
+        {actionData && "success" in actionData && actionData.success && (
+          <p className="mt-6 text-lg text-green-700 font-semibold">
+            {actionData.message}
+          </p>
+        )}
+        <img src="/Commercial-Landscaping-Hero-1.avif" alt="Landscaping services" className="w-full max-w-xl h-auto md:h-48 object-cover rounded-lg shadow-lg mt-12 mx-auto" />
       </div>
-    </main>
+      <footer className="mt-12 text-center text-gray-600">
+        <p>&copy; {new Date().getFullYear()} TC Power & Battery. All rights reserved.</p>
+        <p>The Colony, TX</p>
+      </footer>
+    </div>
   );
 }
